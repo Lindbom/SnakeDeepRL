@@ -32,19 +32,19 @@ class Agent:
 
     def get_features(self, apple, grid):
         
-        features = [
+        return [
         apple[0] > self.body[0][0], # apple over snake
         apple[0] < self.body[0][0], # apple under snake
         apple[1] < self.body[0][1], # apple to the left of snake
         apple[1] > self.body[0][1], # apple to the right of snake
-        grid[[self.body[0][0]-1,self.body[0][1]]] == 1, # wall to the left
-        grid[[self.body[0][0]+1,self.body[0][1]]] == 1, # wall to the right
-        grid[[self.body[0][0],self.body[0][1]+1]] == 1, # wall to the bottom
-        grid[[self.body[0][0],self.body[0][1]-1]] == 1, # wall above
-        any(self.body[0] + self.action_dict[0] == self.body[1:]), # body to the right
-        any(self.body[0] + self.action_dict[1] == self.body[1:]), # body to the up
-        any(self.body[0] + self.action_dict[2] == self.body[1:]), # body to the left
-        any(self.body[0] + self.action_dict[3] == self.body[1:]), # body to the down
+        grid[tuple(self.body[0]+ self.action_dict[0])] == 1, # wall to the right
+        grid[tuple(self.body[0]+ self.action_dict[1])] == 1, # wall to the up
+        grid[tuple(self.body[0]+ self.action_dict[2])] == 1, # wall to the left
+        grid[tuple(self.body[0]+ self.action_dict[3])] == 1, # wall to the down
+        any(all(self.body[0] + self.action_dict[0] == b) for b in self.body[1:]), # body to the right
+        any(all(self.body[0] + self.action_dict[1] == b) for b in self.body[1:]), # body to the up
+        any(all(self.body[0] + self.action_dict[2] == b) for b in self.body[1:]), # body to the left
+        any(all(self.body[0] + self.action_dict[3] == b) for b in self.body[1:]), # body to the down
         ]
 
     def add_body_part(self):
@@ -79,8 +79,6 @@ class Game:
 
     def update(self, action: int):
         self.agent.update(action)
-
-
         if all(self.agent.body[0] == self.apple):
             self.agent.add_body_part()
             self.apple = self.generate_random(self.agent.body)
@@ -91,8 +89,6 @@ class Game:
             return self.HIT_BODY
         else:
             return self.NOTHING
-        
-        
 
     def generate_random(self, invalid_squares):
         while True:
@@ -110,16 +106,14 @@ class Game:
             print("".join(row))
 
 
-
-
 def main():
     
     game = Game(size=10)
     game.draw_game()
     while True:
-        feedback = game.update(input(" 0: for Right \n 1: Up \n 2: Left \n 3: Down \n 4: Nothing \n Input: "))
-        features = game.agent.get_features(game.grid, game.apple)
-        print(features)
+        feedback = game.update(input(" 0: Right \n 1: Up \n 2: Left \n 3: Down \n 4: Nothing \n Input: "))
+        features = game.agent.get_features(grid=game.grid, apple=game.apple)
+        
         if feedback == Game.HIT_BODY:
             break
         elif feedback == Game.HIT_WaLL:
