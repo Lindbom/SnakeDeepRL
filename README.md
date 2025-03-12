@@ -6,7 +6,7 @@ A reinforcement learning implementation of the classic Snake game.
 
 ## Overview
 
-This project implements a reinforcement learning agent that learns to play Snake. The agent is trained to maximize its score by collecting food while avoiding collisions with walls and its own body.
+This project implements a reinforcement learning agent that learns to play Snake. The agent is trained to maximize its score by collecting food while avoiding collisions with walls and its own body. Created a small application using streamlit to showcase the agent as well as a visualisation of the neural network in action.
 
 ## Technical Details
 
