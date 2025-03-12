@@ -7,15 +7,10 @@ import tensorflow as tf
 import os
 import sys
 from PIL import Image
-import io
-import matplotlib.colors as mcolors
 
-# Import the Game and Agent classes
-# Make sure Game.py is in the same directory as this script
+
 from Game import Game, Agent
 
-# Import the SnakeModel and SnakeAgent classes from your training script
-# Make sure train.py is in the same directory as this script
 sys.path.append('.')
 from model import SnakeAgent, INPUT_SHAPE, GRID
 from PIL import Image, ImageDraw, ImageFont
@@ -71,13 +66,13 @@ if 'current_model' not in st.session_state:
     st.session_state.current_model = None
 
 if 'game_speed' not in st.session_state:
-    st.session_state.game_speed = 0.2
+    st.session_state.game_speed = 0.05
 
 if 'color_scheme' not in st.session_state:
     st.session_state.color_scheme = "classic"
 
 if 'grid_size' not in st.session_state:
-    st.session_state.grid_size = GRID
+    st.session_state.grid_size = 15
 
 if 'max_episodes' not in st.session_state:
     st.session_state.max_episodes = 100
@@ -122,7 +117,7 @@ def convert_game_to_image_streamlit(game, color_scheme="classic", show_thinking=
             "background": (220, 220, 220),
             "wall": (40, 40, 40),
             "body": (50, 150, 50),
-            "head": (0, 100, 0),
+            "head": (50, 50, 50),
             "apple": (200, 0, 0),
             "text": (0, 0, 0),
             "neuron_bg": (255, 255, 255),
@@ -148,17 +143,9 @@ def convert_game_to_image_streamlit(game, color_scheme="classic", show_thinking=
     if cache is None:
         cache = {}
     
-    # Get or create font
-    if 'font' not in cache:
-        try:
-            # Try to use a system font
-            cache['font'] = ImageFont.truetype("Arial", 14)
-        except:
-            # Fall back to default
-            cache['font'] = ImageFont.load_default()
+    cache['font'] = ImageFont.load_default()
     
     font = cache['font']
-    
     # Calculate dimensions
     grid_height, grid_width = game.grid.shape
     panel_width = 500 if show_thinking else 0
@@ -224,7 +211,7 @@ def convert_game_to_image_streamlit(game, color_scheme="classic", show_thinking=
     
     # Visualize neural network layers
     layer_names = ["Input", "Hidden 1", "Hidden 2", "Hidden 3", "Output"]
-    layer_sizes = [12, 20, 24, 24, 5]  # From the model architecture
+    layer_sizes = [7, 20, 24, 24, 3]  # From the model architecture
     
     # Calculate positions for layers
     total_width = panel_width - 60
@@ -297,19 +284,17 @@ def convert_game_to_image_streamlit(game, color_scheme="classic", show_thinking=
                                 fill=colors["connections"], width=1)
 
     return image
-# This function is now replaced by inline code in the tab1 section
+
 
 MODEL_FOLDER = 'best_models'
 def main():
-    # Create sidebar
-    st.sidebar.title("🐍 SnakeControls")
     
     tab1,  = st.tabs(["Snake AI"])
     
     with st.sidebar:
         st.header("Configuration")
         
-        st.session_state.grid_size = st.slider("Grid Size", min_value=5, max_value=20, value=GRID, step=1)
+        st.session_state.grid_size = st.slider("Grid Size", min_value=5, max_value=30, value=15, step=1)
         speed_slider = st.slider("Game Speed", min_value=0.01, max_value=0.25, value=st.session_state.game_speed, step=0.01, key="game_speed_slider")
         st.session_state.game_speed = speed_slider
         
@@ -365,8 +350,7 @@ def main():
             steps = 0
             apples_eaten = 0
             steps_since_apple = 0
-            max_steps = 300
-            
+
             # Game loop
             while st.session_state.running_game:
 
@@ -385,8 +369,6 @@ def main():
                     
                     done = (reward == game.HIT_WALL or reward == game.HIT_BODY)
                     
-                    # Update game visualization with neural network thinking if enabled
-                    # if st.session_state.show_thinking and hasattr(snake_ai, 'last_activations'):
                     img = convert_game_to_image_streamlit(game, 
                                                 st.session_state.color_scheme,
                                                 show_thinking=True,
@@ -413,37 +395,19 @@ def main():
                     
                     time.sleep(st.session_state.game_speed)
                     
-                    if done or steps_since_apple > max_steps or steps > max_steps * 2:
+                    if done:
+                        print(f"Breaking due to  {'Hit Wall' if reward == game.HIT_WALL else 'Hit Body'} ")
+                        
+                        game = Game(size=st.session_state.grid_size)
+                        snake_ai = SnakeAgent(input_shape=INPUT_SHAPE, load_model=st.session_state.current_model)
+                        snake_ai.epsilon = -1  # Small epsilon for some randomness
+                            
+                        total_reward = 0
+                        steps = 0
+                        apples_eaten = 0
+                        steps_since_apple = 0
+                        time.sleep(2)
 
-                        metrics_display.markdown(f"""
-                        ### Game Complete!
-                        
-                        **Final Steps:** {steps}
-                        
-                        **Apples Eaten:** {apples_eaten}
-                        
-                        **Total Reward:** {total_reward}
-                        
-                        **Final Snake Length:** {len(game.agent.body)}
-                        """)
-                        
-                        if not st.session_state.infinitive_run:
-                            st.session_state.running_game = False
-                            break
-                        else:
-                            time.sleep(1)
-                            game = Game(size=st.session_state.grid_size)
-                            snake_ai = SnakeAgent(input_shape=INPUT_SHAPE, load_model=st.session_state.current_model)
-                            snake_ai.epsilon = -1  # Small epsilon for some randomness
-                                
-                            total_reward = 0
-                            steps = 0
-                            apples_eaten = 0
-                            steps_since_apple = 0
-                            max_steps = 300
-
-
-                        
                 except Exception as e:
                     st.error(f"Error during game: {e}")
                     st.session_state.running_game = False

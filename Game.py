@@ -3,84 +3,76 @@ import numpy as np
 class Agent:
     def __init__(self) -> None:
         self.body = np.array(np.array((4,4))).reshape(1, 2)
+        self.direction = np.array((0, 1))  # Initial direction: right
+
         self.action_dict = {
-            0 : np.array((0, 1)),   # Right
-            1 : np.array((-1, 0)),  # Up
-            2 : np.array((0, -1)),  # Left
-            3 : np.array((1, 0)),   # Down
-            4 : np.array((0, 0)),   # Do nothing
+            "forward": 0,  # Continue in current direction
+            "left" :  1,  # Turn 90 degrees left
+            "right" :  2,  # Turn 90 degrees right
         }
-        self.direction = self.action_dict[np.random.randint(0, 4)]
-        self.features = [0, 0, 0, 0, 0]
+
+    def get_next_direction(self, action):
+        # Convert relative action (forward/left/right) to absolute direction
+        if action == 0:  # Forward - keep current direction
+            return self.direction
+        elif action == 1:  # Left - rotate 90 degrees counter-clockwise
+            return np.array((-self.direction[1], self.direction[0]))
+        elif action == 2:  # Right - rotate 90 degrees clockwise
+            return np.array((self.direction[1], -self.direction[0]))
 
     def update(self, action):
-        try:
-            action = int(action)
-        except:
-            action = 4
-        self.direction = self.action_dict[action] if action != 4 else self.direction
+    
+        action = int(action)
+        self.direction = self.get_next_direction(action)
         body_temp = self.body.copy()
         self.body[0] = self.body[0] + self.direction
         for index in range(len(self.body)-1):
             self.body[index+1] = body_temp[index]
 
     def get_features(self, apple, grid):
-        # Calculate distance to apple in each direction
-        dx = apple[0] - self.body[0][0]  # positive if apple is to the right
-        dy = apple[1] - self.body[0][1]  # positive if apple is below
-        
-        # Get grid dimensions for normalization
-        grid_height, grid_width = grid.shape
-        max_distance = max(grid_height, grid_width)
-        
-        # Check walls and calculate distance to walls in each direction
+        # Calculate head position and apple position
         head = self.body[0]
         
-        # Wall distances are set to 0 if there's an immediate wall
-        # Check for immediate body parts in each direction
-        right_pos = tuple(head + self.action_dict[0])
-        up_pos = tuple(head + self.action_dict[1])
-        left_pos = tuple(head + self.action_dict[2])
-        down_pos = tuple(head + self.action_dict[3])
-
-        right_wall = grid[right_pos] == 1 
-        up_wall = grid[up_pos] == 1 
-        left_wall = grid[left_pos] == 1 
-        down_wall = grid[down_pos] == 1 
+        # Calculate distance to apple (Manhattan distance)
+        dx = apple[0] - head[0]  # positive if apple is to the right
+        dy = apple[1] - head[1]  # positive if apple is below
         
-        # Check if body is in each direction and set distances
-        body_right = any(np.array_equal(right_pos, b) for b in self.body[1:])
-        body_up    =    any(np.array_equal(up_pos, b) for b in self.body[1:]) 
-        body_left = any(np.array_equal(left_pos, b) for b in self.body[1:])
-        body_down = any(np.array_equal(down_pos, b) for b in self.body[1:])
+        # Get positions in each relative direction
+        right_pos = tuple(head + self.get_next_direction(self.action_dict['right']))
+        forward_pos = tuple(head + self.get_next_direction(self.action_dict['forward']))
+        left_pos = tuple(head + self.get_next_direction(self.action_dict['left']))
         
-        # Normalize all distances to be between -1 and 1 or 0 and 1
-        normalized_dx = dx / max_distance
-        normalized_dy = dy / max_distance
-        apple_direction = [0, 0, 0, 0]
-        if dx > 0:
-            apple_direction[0] = 1
-        elif dx < 0:
-            apple_direction[2] = 1
-        if dy > 0:
-            apple_direction[3] = 1
-        elif dy < 0:
-            apple_direction[1] = 1
-
+        # Check for walls or body in each direction
+        right_obstacle = grid[right_pos] == 1 or any(np.array_equal(right_pos, b) for b in self.body[1:])
+        forward_obstacle = grid[forward_pos] == 1 or any(np.array_equal(forward_pos, b) for b in self.body[1:])
+        left_obstacle = grid[left_pos] == 1 or any(np.array_equal(left_pos, b) for b in self.body[1:])
+        
+        # Convert apple direction to relative directions
+        # First, get the current direction vector
+        dir_vector = self.get_next_direction(self.action_dict['forward'])
+        
+        # Apple is on the right side of the snake
+        apple_right = (dir_vector[1] * dx - dir_vector[0] * dy) > 0
+        
+        # Apple is in front of the snake
+        apple_forward = (dir_vector[0] * dx + dir_vector[1] * dy) > 0
+        
+        # Apple is on the left side of the snake
+        apple_left = (dir_vector[1] * dx - dir_vector[0] * dy) < 0
+        
+        # Normalized distances to apple
+        grid_size = len(grid)
+        distance_to_apple = (abs(dx) + abs(dy)) / (2 * grid_size)
+        
         return [
-            normalized_dx,          # Normalized distance to apple horizontally
-            normalized_dy,          # Normalized distance to apple vertically
-            right_wall,
-            up_wall, 
-            left_wall, 
-            down_wall,  # Normalized distance to wall below
-            body_right,
-            body_up,
-            body_left,
-            body_down,   # Normalized distance to body below
-            *apple_direction,
+            right_obstacle,    # Danger on right
+            forward_obstacle,  # Danger ahead
+            left_obstacle,     # Danger on left
+            apple_right,       # Apple is to the right
+            apple_forward,     # Apple is ahead
+            apple_left,        # Apple is to the left
+            distance_to_apple  # Normalized distance to apple
         ]
-
     def add_body_part(self):
         if len(self.body) > 1:
             dir = self.body[-2] - self.body[-1]
