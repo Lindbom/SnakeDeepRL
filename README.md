@@ -1,2 +1,2 @@
-# Snake_deep_rf
-Using deep reinforcement learning to play the game snake
+# Snake Deep
+A small project to showcase the use of Reinforcement Learning and visualising Neural Networks.
